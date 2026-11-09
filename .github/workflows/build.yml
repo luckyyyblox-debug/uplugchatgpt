@@ -12,10 +12,45 @@ jobs:
     runs-on: macos-15
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build app
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Create project configuration
+        run: |
+          cat > project.yml <<'EOF'
+          name: Unplug
+
+          options:
+            bundleIdPrefix: com.example
+            deploymentTarget:
+              iOS: "16.0"
+
+          settings:
+            base:
+              SWIFT_VERSION: "5.0"
+              TARGETED_DEVICE_FAMILY: "1,2"
+
+          targets:
+            Unplug:
+              type: application
+              platform: iOS
+              sources:
+                - path: .
+                  includes:
+                    - ContentView.swift
+              settings:
+                base:
+                  PRODUCT_BUNDLE_IDENTIFIER: com.example.unplug
+                  GENERATE_INFOPLIST_FILE: YES
+          EOF
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build Unplug
         run: |
           xcodebuild \
             -project Unplug.xcodeproj \
@@ -28,7 +63,7 @@ jobs:
 
       - name: Package IPA
         run: |
-          mkdir Payload
+          mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/Unplug.app Payload/
           zip -r Unplug.ipa Payload
 
@@ -37,3 +72,4 @@ jobs:
         with:
           name: Unplug-IPA
           path: Unplug.ipa
+          retention-days: 14
